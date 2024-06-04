@@ -90,19 +90,28 @@ def apply_mosaic(value):
     global image, img_display, imageCV, mosaic_image
     if imageCV is not None:
         scale = max(1, int(value))
-        height, width, _=imageCV.shape
+        height, width, _ = imageCV.shape
 
-        small_img = cv2.resize(imageCV, (width // scale, height // scale))
+        small_img = cv2.resize(imageCV, (width // scale, height // scale), interpolation=cv2.INTER_LINEAR)
 
-uploadPhoto_btn = tk.Button(window, text="파일 불러오기", command = uploadFile)
-downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command = downloadFile)
+        mosaic_cv = cv2.resize(small_img, (width, height), interpolation=cv2.INTER_NEAREST)
+        mosaic_image = Image.fromarray(cv2.cvtColor(mosaic_cv, cv2.COLOR_BGR2RGB))
+
+        img_display = ImageTk.PhotoImage(mosaic_image)
+        imageLabel.config(image=img_display)
+        imageLabel.image = img_display
+
+uploadPhoto_btn = tk.Button(window, text="파일 불러오기", command=uploadFile)
+downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command=downloadFile)
 
 gray_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Grayscale Level", command=update_grayscale)
+mosaic_slider = tk.Scale(window, from_=1, to=30, orient="horizontal", label="Mosaic Level", command=apply_mosaic)
 
 imageLabel = tk.Label()
 uploadPhoto_btn.pack()
 downloadPhoto_btn.pack()
 gray_slider.pack()
+mosaic_slider.pack()
 imageLabel.pack()
 
 tk.mainloop()
