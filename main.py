@@ -4,6 +4,7 @@ import tkinter.messagebox as messagebox
 
 from PIL import Image
 from PIL import ImageTk
+import numpy as np
 
 import cv2
 
@@ -22,6 +23,11 @@ window.title("simpleshop")
 window.geometry(f"{app_width}x{app_height}+{center_width}+{center_height}")
 window.resizable(False, False)
 
+image = None
+imageCV = None
+gray_image = None
+mosaic_image = None
+
 def uploadFile() :
     fpath = fd.askopenfilename()
     if fpath :
@@ -29,7 +35,7 @@ def uploadFile() :
 
 def uploadPhoto(fpath) :
 
-    global image, imageLabel, imageCV
+    global image, imageLabel, imageCV, img_display
 
     imageCV = cv2.imread(fpath)
 
@@ -53,40 +59,50 @@ def uploadPhoto(fpath) :
             else : width_ = 800
             image = image.resize((width_, height_))
 
-        imageData = ImageTk.PhotoImage(image)
-        imageLabel.configure(image = imageData)
-        imageLabel.image = imageData
+        img_display = ImageTk.PhotoImage(image)
+        imageLabel.configure(image = img_display)
+        imageLabel.image = img_display
 
     else:
         messagebox.showerror("Error", "Failed to load image. Please try a different file.")
 
 def downloadFile() :
-    if image:
+    if gray_image:
         file_path = fd.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("All files", "*.*")])
         if file_path:
             gray_image.save(file_path)
 
-def convert_to_grayscale():
+def update_grayscale(value):
     global image, img_display, imageCV, gray_image
     if imageCV is not None:
+        alpha = float(value) / 100.0
         gray_cv = cv2.cvtColor(imageCV, cv2.COLOR_BGR2GRAY)
-        gray_image = Image.fromarray(gray_cv)
+        gray_cv_rgb = cv2.cvtColor(gray_cv, cv2.COLOR_GRAY2RGB)
+        blended = cv2.addWeighted(imageCV, 1 - alpha, gray_cv_rgb, alpha, 0)
+        gray_image = Image.fromarray(cv2.cvtColor(blended, cv2.COLOR_BGR2RGB))
+        gray_image = gray_image.resize(image.size)
+
         img_display = ImageTk.PhotoImage(gray_image)
         imageLabel.config(image=img_display)
         imageLabel.image = img_display
 
+def apply_mosaic(value):
+    global image, img_display, imageCV, mosaic_image
+    if imageCV is not None:
+        scale = max(1, int(value))
+        height, width, _=imageCV.shape
+
+        small_img = cv2.resize(imageCV, (width // scale, height // scale))
 
 uploadPhoto_btn = tk.Button(window, text="파일 불러오기", command = uploadFile)
 downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command = downloadFile)
 
-grayscale_btn = tk.Button(window, text="흑백 전환", command = convert_to_grayscale)
+gray_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Grayscale Level", command=update_grayscale)
 
 imageLabel = tk.Label()
 uploadPhoto_btn.pack()
 downloadPhoto_btn.pack()
-
-grayscale_btn.pack(side="right")
-
+gray_slider.pack()
 imageLabel.pack()
 
 tk.mainloop()
