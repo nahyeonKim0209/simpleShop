@@ -92,7 +92,17 @@ def apply_noise(image, noise_level):
     noisy_image = add_gaussian_noise(image, std)
     return noisy_image
 
-def apply_effects(gray_value, mosaic_value, noise_value):
+#노출 조정 함수
+def adjust_exposure(image, exposure_value):
+    if exposure_value >= 0:
+        exposure_value = exposure_value / 100.0
+        exposure_image = image.point(lambda p: p * (1 + exposure_value))
+    else:
+        exposure_value = abs(exposure_value) / 100.0
+        exposure_image = image.point(lambda p: p / (1 + exposure_value))
+    return exposure_image
+
+def apply_effects(gray_value, mosaic_value, noise_value, exposure_value):
     global image, img_display, imageCV, processed_image, display_size
     if imageCV is not None:
         # 그레이스케일
@@ -112,7 +122,10 @@ def apply_effects(gray_value, mosaic_value, noise_value):
         noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
         noisy_image = Image.fromarray(noisy_image)
 
-        processed_image = resize_image(noisy_image, 800, 450)
+        # 노출
+        exposure_image = adjust_exposure(noisy_image, exposure_value)
+
+        processed_image = resize_image(exposure_image, 800, 450)
 
         img_display = ImageTk.PhotoImage(processed_image)
         imageLabel.config(image=img_display)
@@ -123,8 +136,9 @@ def on_slider_change(value):
     gray_value = gray_slider.get()
     mosaic_value = mosaic_slider.get()
     noise_value = noise_slider.get()
+    exposure_value = exposure_slider.get()
     
-    apply_effects(gray_value, mosaic_value, noise_value)
+    apply_effects(gray_value, mosaic_value, noise_value, exposure_value)
 
 uploadPhoto_btn = tk.Button(window, text="파일 불러오기", command=uploadFile)
 downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command=downloadFile)
@@ -132,13 +146,15 @@ downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command=downlo
 gray_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Grayscale Level", command=on_slider_change)
 mosaic_slider = tk.Scale(window, from_=1, to=30, orient="horizontal", label="Mosaic Level", command=on_slider_change)
 noise_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Noise Level", command=on_slider_change)
+exposure_slider = tk.Scale(window, from_=-100, to=100, orient="horizontal", label="Exposure Level", command=on_slider_change)
 
-imageLabel = tk.Label()
+imageLabel = tk.Label(window)
 uploadPhoto_btn.pack()
 downloadPhoto_btn.pack()
 gray_slider.pack()
 mosaic_slider.pack()
 noise_slider.pack()
+exposure_slider.pack()
 imageLabel.pack()
 
 tk.mainloop()
