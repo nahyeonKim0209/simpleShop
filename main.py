@@ -87,23 +87,15 @@ def add_gaussian_noise(image, std):
     noisy_image = np.clip(image + noise, 0, 255).astype(np.uint8)
     return noisy_image
 
+#노이즈 레이어 생성
 def apply_noise(image, noise_level):
     std = noise_level * 2.55 
     noisy_image = add_gaussian_noise(image, std)
     return noisy_image
 
-#노출 조정 함수
-def adjust_exposure(image, exposure_value):
-    if exposure_value >= 0:
-        exposure_value = exposure_value / 100.0
-        exposure_image = image.point(lambda p: p * (1 + exposure_value))
-    else:
-        exposure_value = abs(exposure_value) / 100.0
-        exposure_image = image.point(lambda p: p / (1 + exposure_value))
-    return exposure_image
-
-def apply_effects(gray_value, mosaic_value, noise_value, exposure_value):
+def apply_effects(gray_value, mosaic_value, noise_value, exposure_value, blur_value):
     global image, img_display, imageCV, processed_image, display_size
+    
     if imageCV is not None:
         # 그레이스케일
         alpha = float(gray_value) / 100.0
@@ -122,8 +114,21 @@ def apply_effects(gray_value, mosaic_value, noise_value, exposure_value):
         noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
         noisy_image = Image.fromarray(noisy_image)
 
-        # 노출
-        exposure_image = adjust_exposure(noisy_image, exposure_value)
+        # 노출 조정
+        if exposure_value >= 0:
+            exposure_value = exposure_value / 100.0
+            exposure_image = noisy_image.point(lambda p: p * (1 + exposure_value))
+        else:
+            exposure_value = abs(exposure_value) / 100.0
+            exposure_image = noisy_image.point(lambda p: p / (1 + exposure_value))
+
+        # 블러링
+        blur_value = max(1, int(blur_value))
+        blur_value = blur_value + 1 if blur_value % 2 == 0 else blur_value
+        blur_value = int(blur_value)
+        if blur_value > 0:
+            blur_image = cv2.GaussianBlur(np.array(exposure_image), (blur_value, blur_value), 0)
+            exposure_image = Image.fromarray(blur_image)
 
         processed_image = resize_image(exposure_image, 800, 450)
 
@@ -131,14 +136,14 @@ def apply_effects(gray_value, mosaic_value, noise_value, exposure_value):
         imageLabel.config(image=img_display)
         imageLabel.image = img_display
 
-
 def on_slider_change(value):
     gray_value = gray_slider.get()
     mosaic_value = mosaic_slider.get()
     noise_value = noise_slider.get()
     exposure_value = exposure_slider.get()
+    blur_value = blur_slider.get()
     
-    apply_effects(gray_value, mosaic_value, noise_value, exposure_value)
+    apply_effects(gray_value, mosaic_value, noise_value, exposure_value, blur_value)
 
 uploadPhoto_btn = tk.Button(window, text="파일 불러오기", command=uploadFile)
 downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command=downloadFile)
@@ -147,6 +152,7 @@ gray_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Gray
 mosaic_slider = tk.Scale(window, from_=1, to=30, orient="horizontal", label="Mosaic Level", command=on_slider_change)
 noise_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Noise Level", command=on_slider_change)
 exposure_slider = tk.Scale(window, from_=-100, to=100, orient="horizontal", label="Exposure Level", command=on_slider_change)
+blur_slider = tk.Scale(window, from_=0, to=10, orient="horizontal", label="Blur Level", command=on_slider_change)
 
 imageLabel = tk.Label(window)
 uploadPhoto_btn.grid(row=0, column=0, pady=5, padx=5, sticky="w", columnspan=2)
@@ -155,13 +161,14 @@ downloadPhoto_btn.grid(row=1, column=0, pady=5, padx=5, sticky="w", columnspan=2
 gray_slider.grid(row=2, column=2, pady=5, padx=5, sticky="e")
 mosaic_slider.grid(row=3, column=2, pady=5, padx=5, sticky="e")
 noise_slider.grid(row=4, column=2, pady=5, padx=5, sticky="e")
+blur_slider.grid(row=6, column=2, pady=5, padx=5, sticky="e")
 exposure_slider.grid(row=5, column=2, pady=5, padx=5, sticky="e")
 
 imageLabel.grid(row=2, column=1, rowspan=4, pady=5, padx=5, sticky="nsew")
 
-# 각 열의 가중치 설정
+
 window.grid_columnconfigure(0, weight=1)
-window.grid_columnconfigure(1, weight=2)  # 2열의 가중치를 가장 크게 설정
+window.grid_columnconfigure(1, weight=2)  
 window.grid_columnconfigure(2, weight=1)
 
 window.mainloop()
