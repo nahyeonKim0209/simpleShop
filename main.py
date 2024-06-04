@@ -25,8 +25,7 @@ window.resizable(False, False)
 
 image = None
 imageCV = None
-gray_image = None
-mosaic_image = None
+processed_image = None
 display_size = None
 
 def uploadFile():
@@ -43,24 +42,9 @@ def uploadPhoto(fpath):
         image = cv2.cvtColor(imageCV, cv2.COLOR_BGR2RGB)
         image = Image.fromarray(image)
 
-        width, height = image.size
-        width_, height_ = 10, 10
-        if height > 450:
-            width_ = int(width * (450 / height))
-            if width_ > 800:
-                height_ = int(450 * (800 / width_))
-            else:
-                height_ = 450
-            image = image.resize((width_, height_))
-        if width_ > 800:
-            height_ = int(height * (800 / width))
-            if height_ > 450:
-                width_ = int(800 * (450 / height_))
-            else:
-                width_ = 800
-            image = image.resize((width_, height_))
-
         display_size = image.size
+
+        image = resize_image(image, 800, 450)
 
         img_display = ImageTk.PhotoImage(image)
         imageLabel.configure(image=img_display)
@@ -70,51 +54,91 @@ def uploadPhoto(fpath):
         messagebox.showerror("Error", "Failed to load image. Please try a different file.")
 
 def downloadFile():
-    if gray_image or mosaic_image:
+    global processed_image, imageCV
+    if processed_image:
         file_path = fd.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("All files", "*.*")])
         if file_path:
-            if gray_image:
-                gray_image.save(file_path)
-            elif mosaic_image:
-                mosaic_image.save(file_path)
+            original_height, original_width, _ = imageCV.shape
+            processed_image_resized = processed_image.resize((original_width, original_height))
+            processed_image_resized.save(file_path)
 
-def apply_effects(gray_value, mosaic_value):
-    global image, img_display, imageCV, gray_image, mosaic_image, display_size
+def resize_image(image, target_width, target_height):
+    width, height = image.size
+    if height > target_height:
+        width_ = int(width * (target_height / height))
+        if width_ > target_width:
+            height_ = int(target_height * (target_width / width_))
+        else:
+            height_ = target_height
+        image = image.resize((width_, height_))
+    if width_ > target_width:
+        height_ = int(height * (target_width / width))
+        if height_ > target_height:
+            width_ = int(target_width * (target_height / height_))
+        else:
+            width_ = target_width
+        image = image.resize((width_, height_))
+    return image
+
+#가우시안 노이즈 함수
+def add_gaussian_noise(image, std):
+    h, w, c = image.shape
+    noise = np.random.normal(0, std, (h, w, c))
+    noisy_image = np.clip(image + noise, 0, 255).astype(np.uint8)
+    return noisy_image
+
+def apply_noise(image, noise_level):
+    std = noise_level * 2.55 
+    noisy_image = add_gaussian_noise(image, std)
+    return noisy_image
+
+def apply_effects(gray_value, mosaic_value, noise_value):
+    global image, img_display, imageCV, processed_image, display_size
     if imageCV is not None:
-        # 그레이스케일 효과 적용
+        # 그레이스케일
         alpha = float(gray_value) / 100.0
         gray_cv = cv2.cvtColor(imageCV, cv2.COLOR_BGR2GRAY)
         gray_cv_rgb = cv2.cvtColor(gray_cv, cv2.COLOR_GRAY2RGB)
         blended = cv2.addWeighted(imageCV, 1 - alpha, gray_cv_rgb, alpha, 0)
 
-        # 모자이크 효과 적용
+        # 모자이크
         scale = max(1, int(mosaic_value)) 
         height, width, _ = blended.shape
         small_img = cv2.resize(blended, (width // scale, height // scale), interpolation=cv2.INTER_LINEAR)
         mosaic_cv = cv2.resize(small_img, (width, height), interpolation=cv2.INTER_NEAREST)
-        combined_image = Image.fromarray(cv2.cvtColor(mosaic_cv, cv2.COLOR_BGR2RGB))
-        combined_image = combined_image.resize(display_size)
 
-        img_display = ImageTk.PhotoImage(combined_image)
+        # 노이즈
+        noisy_image = apply_noise(mosaic_cv, noise_value)
+        noisy_image = cv2.cvtColor(noisy_image, cv2.COLOR_BGR2RGB)
+        noisy_image = Image.fromarray(noisy_image)
+
+        processed_image = resize_image(noisy_image, 800, 450)
+
+        img_display = ImageTk.PhotoImage(processed_image)
         imageLabel.config(image=img_display)
         imageLabel.image = img_display
+
 
 def on_slider_change(value):
     gray_value = gray_slider.get()
     mosaic_value = mosaic_slider.get()
-    apply_effects(gray_value, mosaic_value)
+    noise_value = noise_slider.get()
+    
+    apply_effects(gray_value, mosaic_value, noise_value)
 
 uploadPhoto_btn = tk.Button(window, text="파일 불러오기", command=uploadFile)
 downloadPhoto_btn = tk.Button(window, text="파일 다운하기", command=downloadFile)
 
 gray_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Grayscale Level", command=on_slider_change)
 mosaic_slider = tk.Scale(window, from_=1, to=30, orient="horizontal", label="Mosaic Level", command=on_slider_change)
+noise_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Noise Level", command=on_slider_change)
 
 imageLabel = tk.Label()
 uploadPhoto_btn.pack()
 downloadPhoto_btn.pack()
 gray_slider.pack()
 mosaic_slider.pack()
+noise_slider.pack()
 imageLabel.pack()
 
 tk.mainloop()
