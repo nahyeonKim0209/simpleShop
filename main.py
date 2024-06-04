@@ -149,12 +149,20 @@ noise_slider = tk.Scale(window, from_=0, to=100, orient="horizontal", label="Noi
 exposure_slider = tk.Scale(window, from_=-100, to=100, orient="horizontal", label="Exposure Level", command=on_slider_change)
 
 imageLabel = tk.Label(window)
-uploadPhoto_btn.pack()
-downloadPhoto_btn.pack()
-gray_slider.pack()
-mosaic_slider.pack()
-noise_slider.pack()
-exposure_slider.pack()
-imageLabel.pack()
+uploadPhoto_btn.grid(row=0, column=0, pady=5, padx=5, sticky="w", columnspan=2)
+downloadPhoto_btn.grid(row=1, column=0, pady=5, padx=5, sticky="w", columnspan=2)
 
-tk.mainloop()
+gray_slider.grid(row=2, column=2, pady=5, padx=5, sticky="e")
+mosaic_slider.grid(row=3, column=2, pady=5, padx=5, sticky="e")
+noise_slider.grid(row=4, column=2, pady=5, padx=5, sticky="e")
+exposure_slider.grid(row=5, column=2, pady=5, padx=5, sticky="e")
+
+imageLabel.grid(row=2, column=1, rowspan=4, pady=5, padx=5, sticky="nsew")
+
+# 각 열의 가중치 설정
+window.grid_columnconfigure(0, weight=1)
+window.grid_columnconfigure(1, weight=2)  # 2열의 가중치를 가장 크게 설정
+window.grid_columnconfigure(2, weight=1)
+
+window.mainloop()
+
